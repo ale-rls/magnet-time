@@ -368,7 +368,7 @@
       250.0,
       40.0,
       104.0,
-      28.0
+      20.0
      ],
      "varname": "tname"
     }
@@ -1180,6 +1180,320 @@
      "text": "live.remote~",
      "varname": "rem"
     }
+   },
+   {
+    "box": {
+     "id": "obj-301",
+     "maxclass": "live.comment",
+     "numinlets": 1,
+     "numoutlets": 0,
+     "text": "ENC",
+     "fontsize": 9.0,
+     "patching_rect": [
+      700.0,
+      20.0,
+      40.0,
+      18.0
+     ],
+     "presentation": 1,
+     "presentation_rect": [
+      216.0,
+      62.0,
+      40.0,
+      12.0
+     ]
+    }
+   },
+   {
+    "box": {
+     "id": "obj-302",
+     "maxclass": "live.comment",
+     "numinlets": 1,
+     "numoutlets": 0,
+     "text": "TICKS",
+     "fontsize": 9.0,
+     "patching_rect": [
+      700.0,
+      44.0,
+      44.0,
+      18.0
+     ],
+     "presentation": 1,
+     "presentation_rect": [
+      284.0,
+      62.0,
+      44.0,
+      12.0
+     ]
+    }
+   },
+   {
+    "box": {
+     "id": "obj-303",
+     "maxclass": "live.tab",
+     "numinlets": 1,
+     "numoutlets": 3,
+     "outlettype": [
+      "",
+      "",
+      "float"
+     ],
+     "parameter_enable": 1,
+     "fontface": 0,
+     "patching_rect": [
+      700.0,
+      70.0,
+      90.0,
+      22.0
+     ],
+     "presentation": 1,
+     "presentation_rect": [
+      216.0,
+      76.0,
+      62.0,
+      17.0
+     ],
+     "varname": "encmode",
+     "saved_attribute_attributes": {
+      "valueof": {
+       "parameter_longname": "Encoder",
+       "parameter_shortname": "Enc",
+       "parameter_type": 2,
+       "parameter_enum": [
+        "Off",
+        "On"
+       ],
+       "parameter_initial_enable": 1,
+       "parameter_initial": [
+        0.0
+       ],
+       "parameter_unitstyle": 0,
+       "parameter_linknames": 1
+      }
+     }
+    }
+   },
+   {
+    "box": {
+     "id": "obj-304",
+     "maxclass": "live.numbox",
+     "numinlets": 1,
+     "numoutlets": 2,
+     "outlettype": [
+      "",
+      "float"
+     ],
+     "parameter_enable": 1,
+     "appearance": 1,
+     "patching_rect": [
+      700.0,
+      100.0,
+      60.0,
+      22.0
+     ],
+     "presentation": 1,
+     "presentation_rect": [
+      284.0,
+      76.0,
+      70.0,
+      15.0
+     ],
+     "varname": "res",
+     "saved_attribute_attributes": {
+      "valueof": {
+       "parameter_longname": "Ticks",
+       "parameter_shortname": "Ticks",
+       "parameter_type": 1,
+       "parameter_mmin": 32.0,
+       "parameter_mmax": 8000.0,
+       "parameter_initial_enable": 1,
+       "parameter_initial": [
+        400
+       ],
+       "parameter_unitstyle": 0,
+       "parameter_linknames": 1,
+       "parameter_steps": 7969
+      }
+     }
+    }
+   },
+   {
+    "box": {
+     "id": "obj-310",
+     "maxclass": "live.numbox",
+     "numinlets": 1,
+     "numoutlets": 2,
+     "outlettype": [
+      "",
+      "float"
+     ],
+     "parameter_enable": 1,
+     "appearance": 1,
+     "patching_rect": [
+      700.0,
+      140.0,
+      60.0,
+      22.0
+     ],
+     "varname": "enccc",
+     "saved_attribute_attributes": {
+      "valueof": {
+       "parameter_longname": "Enc CC",
+       "parameter_shortname": "ECC",
+       "parameter_type": 1,
+       "parameter_mmin": -1.0,
+       "parameter_mmax": 256.0,
+       "parameter_initial_enable": 1,
+       "parameter_initial": [
+        -1
+       ],
+       "parameter_unitstyle": 0,
+       "parameter_linknames": 1,
+       "parameter_invisible": 1,
+       "parameter_steps": 258
+      }
+     }
+    }
+   },
+   {
+    "box": {
+     "id": "obj-311",
+     "maxclass": "live.numbox",
+     "numinlets": 1,
+     "numoutlets": 2,
+     "outlettype": [
+      "",
+      "float"
+     ],
+     "parameter_enable": 1,
+     "appearance": 1,
+     "patching_rect": [
+      700.0,
+      166.0,
+      60.0,
+      22.0
+     ],
+     "varname": "encch",
+     "saved_attribute_attributes": {
+      "valueof": {
+       "parameter_longname": "Enc Ch",
+       "parameter_shortname": "ECh",
+       "parameter_type": 1,
+       "parameter_mmin": -1.0,
+       "parameter_mmax": 256.0,
+       "parameter_initial_enable": 1,
+       "parameter_initial": [
+        -1
+       ],
+       "parameter_unitstyle": 0,
+       "parameter_linknames": 1,
+       "parameter_invisible": 1,
+       "parameter_steps": 258
+      }
+     }
+    }
+   },
+   {
+    "box": {
+     "id": "obj-320",
+     "maxclass": "newobj",
+     "numinlets": 1,
+     "numoutlets": 3,
+     "outlettype": [
+      "int",
+      "int",
+      "int"
+     ],
+     "patching_rect": [
+      700.0,
+      200.0,
+      50.0,
+      22.0
+     ],
+     "style": "ableton",
+     "hidden": 1,
+     "text": "ctlin"
+    }
+   },
+   {
+    "box": {
+     "id": "obj-321",
+     "maxclass": "newobj",
+     "numinlets": 3,
+     "numoutlets": 1,
+     "outlettype": [
+      ""
+     ],
+     "patching_rect": [
+      700.0,
+      230.0,
+      80.0,
+      22.0
+     ],
+     "style": "ableton",
+     "hidden": 1,
+     "text": "pak 0 0 0"
+    }
+   },
+   {
+    "box": {
+     "id": "obj-322",
+     "maxclass": "newobj",
+     "numinlets": 1,
+     "numoutlets": 1,
+     "outlettype": [
+      ""
+     ],
+     "patching_rect": [
+      700.0,
+      260.0,
+      80.0,
+      22.0
+     ],
+     "style": "ableton",
+     "hidden": 1,
+     "text": "prepend cc"
+    }
+   },
+   {
+    "box": {
+     "id": "obj-330",
+     "maxclass": "newobj",
+     "numinlets": 1,
+     "numoutlets": 1,
+     "outlettype": [
+      ""
+     ],
+     "patching_rect": [
+      700.0,
+      290.0,
+      110.0,
+      22.0
+     ],
+     "style": "ableton",
+     "hidden": 1,
+     "text": "prepend encmode"
+    }
+   },
+   {
+    "box": {
+     "id": "obj-331",
+     "maxclass": "newobj",
+     "numinlets": 1,
+     "numoutlets": 1,
+     "outlettype": [
+      ""
+     ],
+     "patching_rect": [
+      700.0,
+      316.0,
+      110.0,
+      22.0
+     ],
+     "style": "ableton",
+     "hidden": 1,
+     "text": "prepend res"
+    }
    }
   ],
   "lines": [
@@ -1422,6 +1736,114 @@
       0
      ]
     }
+   },
+   {
+    "patchline": {
+     "destination": [
+      "obj-321",
+      0
+     ],
+     "source": [
+      "obj-320",
+      0
+     ]
+    }
+   },
+   {
+    "patchline": {
+     "destination": [
+      "obj-321",
+      1
+     ],
+     "source": [
+      "obj-320",
+      1
+     ]
+    }
+   },
+   {
+    "patchline": {
+     "destination": [
+      "obj-321",
+      2
+     ],
+     "source": [
+      "obj-320",
+      2
+     ]
+    }
+   },
+   {
+    "patchline": {
+     "destination": [
+      "obj-322",
+      0
+     ],
+     "source": [
+      "obj-321",
+      0
+     ]
+    }
+   },
+   {
+    "patchline": {
+     "destination": [
+      "obj-25",
+      0
+     ],
+     "source": [
+      "obj-322",
+      0
+     ]
+    }
+   },
+   {
+    "patchline": {
+     "destination": [
+      "obj-330",
+      0
+     ],
+     "source": [
+      "obj-303",
+      0
+     ]
+    }
+   },
+   {
+    "patchline": {
+     "destination": [
+      "obj-25",
+      0
+     ],
+     "source": [
+      "obj-330",
+      0
+     ]
+    }
+   },
+   {
+    "patchline": {
+     "destination": [
+      "obj-331",
+      0
+     ],
+     "source": [
+      "obj-304",
+      0
+     ]
+    }
+   },
+   {
+    "patchline": {
+     "destination": [
+      "obj-25",
+      0
+     ],
+     "source": [
+      "obj-331",
+      0
+     ]
+    }
    }
   ],
   "parameters": {
@@ -1520,7 +1942,27 @@
       "Map"
      ]
     }
-   }
+   },
+   "obj-303": [
+    "Encoder",
+    "Enc",
+    0
+   ],
+   "obj-304": [
+    "Ticks",
+    "Ticks",
+    0
+   ],
+   "obj-310": [
+    "Enc CC",
+    "ECC",
+    0
+   ],
+   "obj-311": [
+    "Enc Ch",
+    "ECh",
+    0
+   ]
   },
   "dependency_cache": [],
   "autosave": 0,

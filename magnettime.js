@@ -32,6 +32,12 @@ var lutMS   = [];
 var anchorsPos  = [];
 var anchorsMs   = [];
 var anchorsName = [];
+var ENC         = 0;     // 0 = mapped dial, 1 = read the encoder directly
+var RES         = 400;  // encoder ticks for a full sweep
+var encCC       = -1;
+var encCh       = -1;
+var encLearn    = 0;
+var internalSet = 0;
 var CURVE       = null;   // eased-travel lookup, rebuilt when Magnet changes
 
 var mapping    = 0;
@@ -147,7 +153,10 @@ function buildAnchors() {
 // parks 13-20 steps per division. Monotonic for every p, so the value never
 // runs backwards.
 function buildCurve() {
-    var p = 32.0 * MAGNET * MAGNET * MAGNET;
+    var m3 = MAGNET * MAGNET * MAGNET;
+    var p = 32.0 * m3 / (1.0 - 0.95 * m3 * m3);
+    if (!(p >= 0)) p = 400.0;
+    if (p > 400.0) p = 400.0;
     var N = 1024;
     var ys = new Array(N + 1);
     var acc = 0.0;
@@ -420,6 +429,60 @@ function pollSel() {
     }
 }
 
+// ------------------------------------------------------------- encoder
+// A CC mapped through Live gives 128 absolute steps for the whole range, so
+// a detent can never be wider than a slice of those 128. Reading the encoder
+// straight off its port instead lets the position accumulate at whatever
+// resolution Ticks asks for, which is what actually makes a detent feel long.
+//
+// Relative encoders disagree on how they encode a tick, so decode by range:
+// values around 64 are the 3Fh/41h style (63 = -1, 65 = +1), and values at
+// the extremes are the 1/127 style (1 = +1, 127 = -1).
+function decodeDelta(v) {
+    if (v >= 48 && v <= 80) return v - 64;
+    if (v < 48) return v;
+    return v - 128;
+}
+
+function cc(val, num, ch) {
+    if (!ENC) return;
+    if (encLearn) {
+        encCC = num;
+        encCh = ch;
+        encLearn = 0;
+        setv("enccc", num);
+        setv("encch", ch);
+        say("readout", "encoder: CC " + num + "  ch " + ch);
+        return;
+    }
+    if (encCC < 0 || num !== encCC || ch !== encCh) return;
+    var d = decodeDelta(val);
+    if (!d) return;
+    var k = KNOB + d / RES;
+    if (k < 0) k = 0;
+    if (k > 1) k = 1;
+    if (k === KNOB) return;
+    KNOB = k;
+    internalSet = 1;
+    setv("knob", KNOB * 100.0);
+    internalSet = 0;
+    update();
+}
+
+function encmode(v) {
+    ENC = v;
+    if (ENC) {
+        encLearn = 1;
+        say("readout", "turn the encoder to learn it\u2026");
+    } else {
+        update();
+    }
+}
+
+function res(v) {
+    RES = v < 32 ? 32 : v;
+}
+
 // ------------------------------------------------------- message inputs
 function map(v) {
     if (v > 0) startMap(); else stopMap();
@@ -434,7 +497,7 @@ function clear() {
     update();
 }
 
-function knob(v)    { KNOB = v / 100.0; if (KNOB < 0) KNOB = 0; if (KNOB > 1) KNOB = 1; update(); }
+function knob(v)    { if (internalSet) return; KNOB = v / 100.0; if (KNOB < 0) KNOB = 0; if (KNOB > 1) KNOB = 1; update(); }
 function magnet(v)  { MAGNET = v / 100.0; buildCurve(); update(); }
 function grid(v)    { GRIDIX = v; buildAnchors(); update(); }
 function feel(v)    { FEELIX = v; buildAnchors(); update(); }
@@ -458,6 +521,11 @@ function readUI() {
     FEELIX  = getv("feel", 0);
     SCALEIX = getv("scale", 1);
     MINMS   = getv("minms", 20.0);
+    ENC     = getv("encmode", 0);
+    RES     = getv("res", 400);
+    if (RES < 32) RES = 32;
+    encCC   = getv("enccc", -1);
+    encCh   = getv("encch", -1);
     MAXMS   = getv("maxms", 1000.0);
     if (MINMS < 0.1) MINMS = 0.1;
 }

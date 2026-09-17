@@ -34,6 +34,8 @@ Drop the single file anywhere Live can see it, e.g.
 | **Grid**   | finest division that gets a magnet (1/4 … 1/32). Coarser ones are always included. |
 | **Feel**   | Straight / +triplets / +dotted / all. |
 | **MAP**    | arm, then click a parameter. Click again to cancel. |
+| **ENC**    | Off = the Time knob is driven by Live's MIDI mapping (128 steps). On = the device reads your encoder directly and accumulates, which is what makes the detents long. Switching it On arms a learn: turn the encoder once and it binds to that CC. |
+| **Ticks**  | encoder clicks for a full sweep when ENC is On. 400 is the default; higher = heavier detents but a slower sweep. |
 
 The readout shows the plugin's own value text plus the division you're sitting
 on, with a dot when you're locked to it.
@@ -80,13 +82,28 @@ Tempo is tracked live, so the divisions follow tempo changes.
   `python3 pack.py` to rebuild the device. The .amxd carries its own copy of
   the script, so editing the loose .js alone will not change the device.
 
-## Twister resolution
+## Twister resolution — how to get heavy detents
 
-Absolute CC mode gives 128 steps across the whole range. That's the same
-resolution you have now, and the magnet spends more of those steps near the
-divisions, which is the point. If you want finer travel between divisions, set
-the encoder to a relative mode in Midi Fighter Utility and pick the matching
-Relative mode in Live's MIDI mapping browser.
+A CC mapped through Live gives 128 absolute steps for the *whole* range, so a
+detent can never be wider than a slice of those 128. That is the ceiling on
+how much weight is possible, whatever the curve does.
+
+Reading the encoder directly lifts it. In Midi Fighter Utility set the encoder
+to a **relative** mode (either the 3Fh/41h style or the 1/127 style — the
+device detects which), then in the device set **ENC** to On and turn the
+encoder once to bind it. Remove the Live MIDI mapping on the Time knob so the
+two don't both drive it.
+
+Clicks held on each division, magnet 85%, 31–2400 ms at 120 BPM:
+
+| | 1/16 | 1/8 | 1/4 | 1/2 | 1/1 |
+|---|------|-----|-----|-----|-----|
+| Live MIDI map, 128 steps | 21 | 15 | 15 | 15 | 9 |
+| ENC on, Ticks = 400      | 67 | 46 | 46 | 47 | 30 |
+| ENC on, Ticks = 1200     | 203 | 140 | 140 | 140 | 90 |
+
+Ticks trades weight against sweep speed. If `ctlin` can't reach your port in
+your setup, ENC simply does nothing and the Live mapping keeps working.
 
 ## Repo layout
 
