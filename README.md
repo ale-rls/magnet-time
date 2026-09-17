@@ -7,8 +7,8 @@ to break out. Then it maps to any parameter in your set — e.g. H-Delay's Delay
 
 ## Install
 
-Keep **both files in the same folder** — the device loads `magnettime.js` from
-next to itself. Drop the folder anywhere Live can see it, e.g.
+`Magnet Time.amxd` is self-contained — `magnettime.js` is embedded inside it.
+Drop the single file anywhere Live can see it, e.g.
 
     ~/Music/Ableton/User Library/Presets/Audio Effects/Max Audio Effect/
 
@@ -66,8 +66,9 @@ Tempo is tracked live, so the divisions follow tempo changes.
   "manual range" — then set Range by hand to the plugin's real min/max ms.
 - While mapped, the device owns that parameter — turning H-Delay's knob by
   hand will get overwritten on the next move.
-- To bundle the .js inside the .amxd: open the device's Max editor and use
-  **Freeze Device**.
+- To change the logic: edit `magnettime.js` (or `patcher.json`) and run
+  `python3 pack.py` to rebuild the device. The .amxd carries its own copy of
+  the script, so editing the loose .js alone will not change the device.
 
 ## Twister resolution
 
@@ -76,3 +77,25 @@ resolution you have now, and the magnet spends more of those steps near the
 divisions, which is the point. If you want finer travel between divisions, set
 the encoder to a relative mode in Midi Fighter Utility and pick the matching
 Relative mode in Live's MIDI mapping browser.
+
+## Repo layout
+
+| File | |
+|------|---|
+| `Magnet Time.amxd` | the device — self-contained, this is the only file Live needs |
+| `magnettime.js`    | the logic, embedded into the .amxd at pack time |
+| `patcher.json`     | the Max patcher (36 objects, 19 connections) |
+| `pack.py`          | rebuilds the .amxd from the two sources |
+
+### On the .amxd format
+
+An .amxd is an **xpcoll collective**, not a plain patcher. After the `ampf` /
+`meta` / `ptch` chunks the payload is:
+
+    'mx@c' <be 16> <be 0> <be offset-of-directory>
+    <file blobs, packed from offset 16>
+    dlst -> dire per file -> type / fnam / sz32 / of32 / vers / flag / mdat
+
+That `dlst` directory is what Max means by "directory". Build an .amxd without
+one and Max reports `error -1 making directory` and refuses to load it, which
+is exactly what this device did for its first two builds.
