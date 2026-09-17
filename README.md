@@ -16,8 +16,10 @@ Drop the single file anywhere Live can see it, e.g.
 
 1. Drop **Magnet Time** on the track that has H-Delay (before or after it —
    it passes audio straight through and doesn't touch the signal).
-2. Click **MAP**, then click H-Delay's Delay knob in Live. The target name
-   appears and the device auto-detects the knob's ms range.
+2. Click **MAP**, then click H-Delay's Delay knob **in Live's device panel**
+   (not inside the Waves plugin window — Live can't see clicks in there).
+   The target name appears and the device auto-detects the knob's ms range.
+   MAP stays armed until you hit a real parameter, or 30 s pass.
 3. MIDI-map the **Time** knob to your Midi Fighter Twister
    (Cmd+M, wiggle the encoder, Cmd+M).
 
@@ -64,8 +66,10 @@ Tempo is tracked live, so the divisions follow tempo changes.
 - Calibration reads the plugin's own value text across its range, so it works
   with non-linear parameters. If it can't read numbers it falls back to
   "manual range" — then set Range by hand to the plugin's real min/max ms.
-- While mapped, the device owns that parameter — turning H-Delay's knob by
-  hand will get overwritten on the next move.
+- Writing goes through `live.remote~`, the same route Ableton's own LFO and
+  Envelope Follower use, so Live shows the parameter as remote-controlled and
+  the moves don't pile up in the undo history. While mapped, the device owns
+  that parameter — turning it by hand gets overwritten on the next move.
 - To change the logic: edit `magnettime.js` (or `patcher.json`) and run
   `python3 pack.py` to rebuild the device. The .amxd carries its own copy of
   the script, so editing the loose .js alone will not change the device.

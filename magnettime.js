@@ -33,9 +33,11 @@ var anchorsPos  = [];
 var anchorsMs   = [];
 var anchorsName = [];
 
-var mapping  = 0;
-var selObs   = null;
-var tempoObs = null;
+var mapping    = 0;
+var pollTask   = null;
+var baselineId = "0";
+var armTicks   = 0;
+var tempoObs   = null;
 var booted   = 0;
 
 var DIVS = [ ["1/1", 4.0], ["1/2", 2.0], ["1/4", 1.0],
@@ -241,10 +243,7 @@ function update() {
     var wx = warp(KNOB);
     var ms = posToMs(wx);
 
-    if (target) {
-        var v = msToParam(ms);
-        try { target.set("value", v); } catch (e) { }
-    }
+    if (target) outlet(0, msToParam(ms));
 
     var nearest = "";
     var locked = 0;
@@ -257,12 +256,6 @@ function update() {
     }
 
     var shown = fmtMs(ms);
-    if (calMode === "auto" && target) {
-        try {
-            var s = String(target.call("str_for_value", msToParam(ms)));
-            if (s.length && s.length < 20) shown = s;
-        } catch (e) { }
-    }
     say("readout", shown + (locked ? ("   " + nearest + "  ●") : (nearest ? ("   " + nearest) : "")));
 }
 
@@ -302,25 +295,19 @@ function restorePath() {
     return parts.join(" ");
 }
 
-function bindApi(api) {
-    if (!api || api.id === 0 || api.id === "0") return 0;
-    var ty = "";
-    try { ty = String(api.type); } catch (e) { }
-    if (ty !== "DeviceParameter") {
-        post("Magnet Time: that is not a device parameter (" + ty + ")\n");
-        return 0;
-    }
-    // don't let it grab one of its own knobs
+function ownedByThisDevice(api) {
     try {
         var owner = new LiveAPI(String(api.path).replace(/"/g, "") + " canonical_parent");
         var me = new LiveAPI("this_device");
-        if (String(owner.id) === String(me.id)) {
-            post("Magnet Time: pick a parameter on another device\n");
-            return 0;
-        }
-    } catch (e) { }
+        return String(owner.id) === String(me.id);
+    } catch (e) { return false; }
+}
+
+function bindApi(api) {
+    if (!api || String(api.id) === "0") return 0;
     target = api;
     calibrate();
+    outlet(0, "id", parseInt(String(api.id), 10));
     return 1;
 }
 
@@ -334,37 +321,62 @@ function showTargetName() {
         dev = String(d.get("name"));
     } catch (e) { }
     var tag = (dev ? dev + " " : "") + nm;
-    if (tag.length > 34) tag = tag.substring(0, 33) + "…";
+    if (tag.length > 34) tag = tag.substring(0, 33) + "\u2026";
     say("tname", tag + (calMode === "manual" ? "  (manual range)" : ""));
 }
 
+function selectedId() {
+    try { return String(new LiveAPI("live_set view selected_parameter").id); }
+    catch (e) { return "0"; }
+}
+
+// Arming records whichever parameter is selected right now as the baseline --
+// clicking MAP selects the MAP button itself, so without this the very first
+// reading is always this device and nothing else ever gets a chance. Anything
+// we reject (our own knobs, non-parameters) just moves the baseline on and
+// leaves the button armed, the way Ableton's own dontMapToYourself does.
 function startMap() {
     mapping = 1;
-    say("readout", "click any parameter in Live…");
-    if (!selObs) selObs = new LiveAPI(onSel, "live_set view");
-    selObs.property = "selected_parameter";
+    baselineId = selectedId();
+    armTicks = 0;
+    setv("mapbtn", 1);
+    say("readout", "click a parameter in Live\u2026");
+    if (!pollTask) pollTask = new Task(pollSel, this);
+    pollTask.interval = 100;
+    pollTask.repeat();
 }
 
 function stopMap() {
     mapping = 0;
-    if (selObs) { try { selObs.property = ""; } catch (e) { } }
+    if (pollTask) pollTask.cancel();
     setv("mapbtn", 0);
+    update();
 }
 
-function onSel(a) {
-    if (!mapping) return;
-    if (!a || a[0] != "selected_parameter") return;
-    var id = a[a.length - 1];
-    if (!id || id == 0) return;
-    var api = new LiveAPI("id " + id);
+function pollSel() {
+    if (!mapping) { if (pollTask) pollTask.cancel(); return; }
+    if (++armTicks > 300) { say("readout", "map timed out"); stopMap(); return; }
+
+    var id = selectedId();
+    if (id === "0" || id === baselineId) return;
+
+    var api = null;
+    try { api = new LiveAPI("id " + id); } catch (e) { return; }
+    if (!api) { baselineId = id; return; }
+
+    var ty = "";
+    try { ty = String(api.type); } catch (e) { }
+    if (ty !== "DeviceParameter" || ownedByThisDevice(api)) { baselineId = id; return; }
+
     if (bindApi(api)) {
         storePath(api.path);
         autoRange();
         buildAnchors();
         showTargetName();
-        update();
+        stopMap();
+    } else {
+        baselineId = id;
     }
-    stopMap();
 }
 
 // ------------------------------------------------------- message inputs
@@ -375,6 +387,7 @@ function map(v) {
 function clear() {
     target = null;
     calMode = "none";
+    outlet(0, "id", 0);
     for (var k = 0; k < 8; k++) setv("s" + k, -1);
     showTargetName();
     update();

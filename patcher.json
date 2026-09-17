@@ -1161,6 +1161,25 @@
      "text": "prepend map",
      "hidden": 1
     }
+   },
+   {
+    "box": {
+     "id": "obj-200",
+     "maxclass": "newobj",
+     "numinlets": 2,
+     "numoutlets": 0,
+     "outlettype": [],
+     "patching_rect": [
+      300.0,
+      600.0,
+      90.0,
+      22.0
+     ],
+     "style": "ableton",
+     "hidden": 1,
+     "text": "live.remote~",
+     "varname": "rem"
+    }
    }
   ],
   "lines": [
@@ -1388,6 +1407,18 @@
      ],
      "source": [
       "obj-36",
+      0
+     ]
+    }
+   },
+   {
+    "patchline": {
+     "destination": [
+      "obj-200",
+      0
+     ],
+     "source": [
+      "obj-25",
       0
      ]
     }
