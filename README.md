@@ -29,7 +29,7 @@ Drop the single file anywhere Live can see it, e.g.
 |------------|--------------|
 | **Time**   | the knob. This is the one you map to the Twister. |
 | **Magnet** | 0% = perfectly linear, same as now. 100% = the value fully parks on each division. ~85% is a good playing feel. |
-| **Range**  | min/max in ms. Auto-filled from the plugin when you map. |
+| **Range**  | min/max in ms. On mapping it opens on the musical window (half a 1/32 up to a bit past 1/1), clamped to what the plugin supports — a plugin that runs 0-3500 ms would otherwise squeeze every division into the top third of the knob. |
 | **Curve**  | how the knob spans the range. Exp feels right for delay time. |
 | **Grid**   | finest division that gets a magnet (1/4 … 1/32). Coarser ones are always included. |
 | **Feel**   | Straight / +triplets / +dotted / all. |
@@ -40,22 +40,28 @@ on, with a dot when you're locked to it.
 
 ## How the magnet works
 
-Between two neighbouring divisions the travel is re-timed with
+Between two neighbouring divisions the travel is re-timed by the normalised
+integral of `(t(1-t))^p` — flat at both ends, steep in the middle. Near a
+division the value barely moves however far you keep turning, then it
+releases. Magnet sets `p` (0 = linear, 100% = nearly a hard snap).
 
-    e(t) = t − (s / 2π)·sin(2π t)
+Measured on the shipped script, 128 MIDI steps, 31–2400 ms at 120 BPM, grid
+1/16 — encoder steps that land on each division:
 
-Its slope is `1 − s·cos(2π t)`: it drops to `1 − s` right at a division and
-rises above 1 in the middle. At s = 1 the slope hits zero, so the value stops
-on the division and only moves again once you push past. It's monotonic for
-every s in 0…1, so the knob never jumps backwards.
+| Magnet | 1/16 | 1/8 | 1/4 | 1/2 | 1/1 | worst step jump |
+|--------|------|-----|-----|-----|-----|-----------------|
+| 0%     | 0    | 1   | 1   | 0   | 0   | ×1.03 |
+| 50%    | 10   | 7   | 7   | 8   | 6   | ×1.09 |
+| 70%    | 17   | 11  | 11  | 12  | 8   | ×1.14 |
+| 85%    | 20   | 13  | 13  | 14  | 9   | ×1.19 |
+| 100%   | 21   | 15  | 15  | 15  | 9   | ×1.24 |
 
-Measured over 128 MIDI steps with 20–1000 ms range at 120 BPM:
+A knob sweep at 85% (ms):
 
-| Magnet | steps parked on 1/8 | steps parked on 1/4 |
-|--------|--------------------|---------------------|
-| 0%     | 1                  | 0                   |
-| 85%    | 4                  | 4                   |
-| 100%   | 9                  | 6                   |
+    31 31 31 32 35 43 58 81 104 119 124 125 125 125 125 125 125 125 125 125
+    125 125 127 149 206 245 250 250 250 250 250 250 252 282 384 481 499 500
+    500 500 500 500 502 539 713 934 997 1000 1000 1000 1000 1000 1001 1045
+    1321 1794 1986 2000 2000 2000 2000 2379 2400
 
 Tempo is tracked live, so the divisions follow tempo changes.
 

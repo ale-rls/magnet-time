@@ -32,6 +32,7 @@ var lutMS   = [];
 var anchorsPos  = [];
 var anchorsMs   = [];
 var anchorsName = [];
+var CURVE       = null;   // eased-travel lookup, rebuilt when Magnet changes
 
 var mapping    = 0;
 var pollTask   = null;
@@ -135,12 +136,46 @@ function buildAnchors() {
     anchorsName.push("");
 }
 
-// The detent curve. Between two anchors we re-time the travel with
-//     e(t) = t - (s / 2pi) * sin(2pi * t)
-// whose slope is 1 - s*cos(2pi*t): it falls to (1 - s) right at an anchor
-// and rises above 1 in the middle. At s = 1 the value parks exactly on the
-// anchor and you have to keep turning to get moving again. Monotonic for
-// every s in [0, 1], so the knob never jumps backwards.
+// The detent curve. Between two anchors the travel is re-timed by the
+// normalised integral of (t(1-t))^p: flat at both ends, steep in the middle.
+// Near a division the value barely moves however far you keep turning, then
+// it releases. p = 0 is linear; higher p widens the flat part.
+//
+// This replaced a sine easing, t - (s/2pi)sin(2pi t). That only reaches zero
+// slope exactly at the anchor, so with a 128-step MIDI encoder just 4 steps
+// landed on 1/8 at 85% magnet and there was nothing to feel. The plateau
+// parks 13-20 steps per division. Monotonic for every p, so the value never
+// runs backwards.
+function buildCurve() {
+    var p = 32.0 * MAGNET * MAGNET * MAGNET;
+    var N = 1024;
+    var ys = new Array(N + 1);
+    var acc = 0.0;
+    ys[0] = 0.0;
+    for (var i = 1; i <= N; i++) {
+        var u = (i - 0.5) / N;
+        acc += Math.pow(u * (1.0 - u), p);
+        ys[i] = acc;
+    }
+    var tot = ys[N];
+    if (!(tot > 0)) {
+        for (var k = 0; k <= N; k++) ys[k] = k / N;
+    } else {
+        for (var k2 = 0; k2 <= N; k2++) ys[k2] = ys[k2] / tot;
+    }
+    CURVE = ys;
+}
+
+function ease(t) {
+    if (!CURVE) return t;
+    if (t <= 0) return 0.0;
+    if (t >= 1) return 1.0;
+    var x = t * (CURVE.length - 1);
+    var i = Math.floor(x);
+    var f = x - i;
+    return CURVE[i] + f * (CURVE[i + 1] - CURVE[i]);
+}
+
 function warp(x) {
     var n = anchorsPos.length;
     if (n < 2) return x;
@@ -152,8 +187,7 @@ function warp(x) {
     var t = (x - a) / (b - a);
     if (t < 0) t = 0;
     if (t > 1) t = 1;
-    var e = t - (MAGNET / (2 * Math.PI)) * Math.sin(2 * Math.PI * t);
-    return a + (b - a) * e;
+    return a + (b - a) * ease(t);
 }
 
 // --------------------------------------------------------- calibration
@@ -208,9 +242,18 @@ function calibrate() {
 
 function autoRange() {
     if (calMode !== "auto") return;
-    var lo = lutMS[0];
-    var hi = lutMS[lutMS.length - 1];
-    if (lo < 1.0) lo = 1.0;
+    var loLim = lutMS[0];
+    var hiLim = lutMS[lutMS.length - 1];
+    // A plugin that runs 0-3500 ms crams every division into the top third of
+    // the knob. Open on the musically useful window instead -- half a 1/32 up
+    // to a little past a whole note -- clamped to the plugin's real span.
+    var beat = 60000.0 / tempo;
+    var lo = beat * 0.0625;
+    var hi = beat * 4.8;
+    if (lo < loLim) lo = loLim;
+    if (hi > hiLim) hi = hiLim;
+    if (lo < 0.1) lo = 0.1;
+    if (hi <= lo * 1.5) { lo = Math.max(loLim, 0.1); hi = hiLim; }
     MINMS = Math.round(lo * 10) / 10;
     MAXMS = Math.round(hi);
     setv("minms", MINMS);
@@ -247,16 +290,14 @@ function update() {
 
     var nearest = "";
     var locked = 0;
+    var best = 1e9;
     for (var i = 1; i < anchorsMs.length - 1; i++) {
-        if (Math.abs(ms - anchorsMs[i]) / anchorsMs[i] < 0.006) {
-            nearest = anchorsName[i];
-            locked = 1;
-            break;
-        }
+        var rel = Math.abs(Math.log(ms / anchorsMs[i]));
+        if (rel < best) { best = rel; nearest = anchorsName[i]; }
     }
+    if (nearest && best < 0.01) locked = 1;
 
-    var shown = fmtMs(ms);
-    say("readout", shown + (locked ? ("   " + nearest + "  ●") : (nearest ? ("   " + nearest) : "")));
+    say("readout", fmtMs(ms) + (nearest ? ("   " + nearest + (locked ? "  \u25CF" : "")) : ""));
 }
 
 // ------------------------------------------------------------- mapping
@@ -394,7 +435,7 @@ function clear() {
 }
 
 function knob(v)    { KNOB = v / 100.0; if (KNOB < 0) KNOB = 0; if (KNOB > 1) KNOB = 1; update(); }
-function magnet(v)  { MAGNET = v / 100.0; update(); }
+function magnet(v)  { MAGNET = v / 100.0; buildCurve(); update(); }
 function grid(v)    { GRIDIX = v; buildAnchors(); update(); }
 function feel(v)    { FEELIX = v; buildAnchors(); update(); }
 function scale(v)   { SCALEIX = v; buildAnchors(); update(); }
@@ -426,6 +467,7 @@ function init() {
     booted = 1;
     PAT = this.patcher;
     readUI();
+    buildCurve();
 
     var song = new LiveAPI("live_set");
     tempo = parseFloat(song.get("tempo"));
