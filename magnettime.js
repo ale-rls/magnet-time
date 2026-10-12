@@ -8,7 +8,7 @@
 
 autowatch = 1;
 inlets = 1;
-outlets = 1;
+outlets = 2; // 0: parameter values, 1: target IDs for live.remote~ right inlet
 
 var PAT = this.patcher;
 
@@ -38,7 +38,7 @@ var encCC       = -1;
 var encCh       = -1;
 var encLearn    = 0;
 var internalSet = 0;
-var CURVE       = null;   // eased-travel lookup, rebuilt when Magnet changes
+var HELD        = -1;     // exact musical anchor held by the current knob position
 
 var mapping    = 0;
 var pollTask   = null;
@@ -142,61 +142,49 @@ function buildAnchors() {
     anchorsName.push("");
 }
 
-// The detent curve. Between two anchors the travel is re-timed by the
-// normalised integral of (t(1-t))^p: flat at both ends, steep in the middle.
-// Near a division the value barely moves however far you keep turning, then
-// it releases. p = 0 is linear; higher p widens the flat part.
-//
-// This replaced a sine easing, t - (s/2pi)sin(2pi t). That only reaches zero
-// slope exactly at the anchor, so with a 128-step MIDI encoder just 4 steps
-// landed on 1/8 at 85% magnet and there was nothing to feel. The plateau
-// parks 13-20 steps per division. Monotonic for every p, so the value never
-// runs backwards.
-function buildCurve() {
-    var m3 = MAGNET * MAGNET * MAGNET;
-    var p = 32.0 * m3 / (1.0 - 0.95 * m3 * m3);
-    if (!(p >= 0)) p = 400.0;
-    if (p > 400.0) p = 400.0;
-    var N = 1024;
-    var ys = new Array(N + 1);
-    var acc = 0.0;
-    ys[0] = 0.0;
-    for (var i = 1; i <= N; i++) {
-        var u = (i - 0.5) / N;
-        acc += Math.pow(u * (1.0 - u), p);
-        ys[i] = acc;
-    }
-    var tot = ys[N];
-    if (!(tot > 0)) {
-        for (var k = 0; k <= N; k++) ys[k] = k / N;
-    } else {
-        for (var k2 = 0; k2 <= N; k2++) ys[k2] = ys[k2] / tot;
-    }
-    CURVE = ys;
-}
-
-function ease(t) {
-    if (!CURVE) return t;
-    if (t <= 0) return 0.0;
-    if (t >= 1) return 1.0;
-    var x = t * (CURVE.length - 1);
-    var i = Math.floor(x);
-    var f = x - i;
-    return CURVE[i] + f * (CURVE[i + 1] - CURVE[i]);
+// Exact flat zones around musical anchors, with short cosine shoulders.
+// Outside the shoulders travel has constant speed in the selected scale.
+// Integrating the velocity profile keeps entry/release continuous and avoids
+// concentrating almost the entire interval into one large mid-gap jump.
+// Unlabelled range endpoints do not get artificial holds.
+function holdWidth() {
+    var m = Math.max(0, Math.min(1, MAGNET));
+    // Keep the existing feel through 85%; reserve the top end for strong glue.
+    var boost = Math.max(0, (m - 0.85) / 0.15);
+    return 0.12 * m + 0.28 * boost * boost;
 }
 
 function warp(x) {
+    HELD = -1;
     var n = anchorsPos.length;
-    if (n < 2) return x;
+    if (n < 2 || MAGNET <= 0) return x;
     var i = 0;
     while (i < n - 2 && x >= anchorsPos[i + 1]) i++;
     var a = anchorsPos[i];
     var b = anchorsPos[i + 1];
     if (b - a <= 1e-9) return x;
-    var t = (x - a) / (b - a);
-    if (t < 0) t = 0;
-    if (t > 1) t = 1;
-    return a + (b - a) * ease(t);
+    var t = Math.max(0, Math.min(1, (x - a) / (b - a)));
+    var width = holdWidth();
+    var left = anchorsName[i] ? width : 0;
+    var right = anchorsName[i + 1] ? width : 0;
+    if (left > 0 && t <= left) { HELD = i; return a; }
+    if (right > 0 && t >= 1 - right) { HELD = i + 1; return b; }
+    // Shorten the shoulders as holds widen so a continuous transition remains.
+    var shoulder = Math.min(0.12 * MAGNET, (1 - left - right) * 0.25);
+    var ls = left > 0 ? shoulder : 0;
+    var rs = right > 0 ? shoulder : 0;
+    var total = 1 - left - right - 0.5 * (ls + rs);
+    var area, u;
+    if (ls > 0 && t < left + ls) {
+        u = (t - left) / ls;
+        area = 0.5 * ls * (u - Math.sin(Math.PI * u) / Math.PI);
+    } else if (rs > 0 && t > 1 - right - rs) {
+        u = (1 - right - t) / rs;
+        area = total - 0.5 * rs * (u - Math.sin(Math.PI * u) / Math.PI);
+    } else {
+        area = t - left - 0.5 * ls;
+    }
+    return a + (b - a) * Math.max(0, Math.min(1, area / total));
 }
 
 // --------------------------------------------------------- calibration
@@ -293,7 +281,7 @@ function msToParam(ms) {
 // -------------------------------------------------------------- output
 function update() {
     var wx = warp(KNOB);
-    var ms = posToMs(wx);
+    var ms = HELD >= 0 ? anchorsMs[HELD] : posToMs(wx);
 
     if (target) outlet(0, msToParam(ms));
 
@@ -304,7 +292,7 @@ function update() {
         var rel = Math.abs(Math.log(ms / anchorsMs[i]));
         if (rel < best) { best = rel; nearest = anchorsName[i]; }
     }
-    if (nearest && best < 0.01) locked = 1;
+    if (HELD >= 0) { nearest = anchorsName[HELD]; locked = 1; }
 
     say("readout", fmtMs(ms) + (nearest ? ("   " + nearest + (locked ? "  \u25CF" : "")) : ""));
 }
@@ -357,7 +345,7 @@ function bindApi(api) {
     if (!api || String(api.id) === "0") return 0;
     target = api;
     calibrate();
-    outlet(0, "id", parseInt(String(api.id), 10));
+    outlet(1, "id", parseInt(String(api.id), 10));
     return 1;
 }
 
@@ -491,14 +479,14 @@ function map(v) {
 function clear() {
     target = null;
     calMode = "none";
-    outlet(0, "id", 0);
+    outlet(1, "id", 0);
     for (var k = 0; k < 8; k++) setv("s" + k, -1);
     showTargetName();
     update();
 }
 
 function knob(v)    { if (internalSet) return; KNOB = v / 100.0; if (KNOB < 0) KNOB = 0; if (KNOB > 1) KNOB = 1; update(); }
-function magnet(v)  { MAGNET = v / 100.0; buildCurve(); update(); }
+function magnet(v)  { MAGNET = Math.max(0, Math.min(1, v / 100.0)); update(); }
 function grid(v)    { GRIDIX = v; buildAnchors(); update(); }
 function feel(v)    { FEELIX = v; buildAnchors(); update(); }
 function scale(v)   { SCALEIX = v; buildAnchors(); update(); }
@@ -535,7 +523,6 @@ function init() {
     booted = 1;
     PAT = this.patcher;
     readUI();
-    buildCurve();
 
     var song = new LiveAPI("live_set");
     tempo = parseFloat(song.get("tempo"));

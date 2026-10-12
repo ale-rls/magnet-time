@@ -58,7 +58,7 @@
      "maxclass": "live.comment",
      "numinlets": 1,
      "numoutlets": 0,
-     "text": "MAGNET TIME",
+     "text": "MAGNET TIME v2",
      "fontsize": 10.0,
      "patching_rect": [
       40.0,
@@ -924,8 +924,9 @@
      "id": "obj-25",
      "maxclass": "newobj",
      "numinlets": 1,
-     "numoutlets": 1,
+     "numoutlets": 2,
      "outlettype": [
+      "",
       ""
      ],
      "patching_rect": [
@@ -1432,7 +1433,7 @@
      ],
      "style": "ableton",
      "hidden": 1,
-     "text": "pak 0 0 0"
+     "text": "pack 0 0 0"
     }
    },
    {
@@ -1842,6 +1843,18 @@
      "source": [
       "obj-331",
       0
+     ]
+    }
+   },
+   {
+    "patchline": {
+     "source": [
+      "obj-25",
+      1
+     ],
+     "destination": [
+      "obj-200",
+      1
      ]
     }
    }
